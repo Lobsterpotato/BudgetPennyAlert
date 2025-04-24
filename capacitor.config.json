@@ -1,0 +1,9 @@
+
+{
+  "appId": "app.lovable.expensetracker",
+  "appName": "ExpenseTracker",
+  "server": {
+    "url": "https://ff278982-0ecf-4def-8035-f86000d1517d.lovableproject.com?forceHideBadge=true",
+    "cleartext": true
+  }
+}
