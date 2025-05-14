@@ -1,4 +1,3 @@
-
 // Main App component that sets up the application structure
 // Technologies used:
 // - React Router for navigation
@@ -11,7 +10,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider } from "@/context/AuthContext";
+import { AuthProvider, useAuth } from "@/context/AuthContext";
 import Index from "./pages/Index";
 import AddExpense from "./pages/AddExpense";
 import Reports from "./pages/Reports";
@@ -19,13 +18,38 @@ import Accountants from "./pages/Accountants";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
-import AdminPanel from "./pages/AdminPanel";
-import BudgetPage from "./pages/Budget"; // Import BudgetPage component
+import BudgetPage from "./pages/Budget";
+import Income from "./pages/Income";
+import Onboarding from "./pages/Onboarding";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { BudgetProvider } from "@/context/BudgetContext";
+import AdminPanel from "./pages/AdminPanel";
+import Layout from "./components/Layout";
 
 // Create a new React Query client for data fetching
 const queryClient = new QueryClient();
+
+// Component to handle root route redirection
+const RootRedirect = () => {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  // While checking authentication status, show loading spinner
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  // If not authenticated, show onboarding page
+  if (!isAuthenticated) {
+    return <Onboarding />;
+  }
+
+  // If authenticated, redirect to dashboard
+  return <Navigate to="/dashboard" replace />;
+};
 
 const App = () => (
   // Set up React Query for data fetching and state management
@@ -40,14 +64,16 @@ const App = () => (
         <AuthProvider>
           <BudgetProvider>
             <Routes>
-              {/* Authentication routes */}
+              {/* Public routes */}
+              <Route path="/" element={<RootRedirect />} />
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
               
               {/* Protected routes */}
-              <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+              <Route path="/dashboard" element={<ProtectedRoute><Index /></ProtectedRoute>} />
               <Route path="/add" element={<ProtectedRoute><AddExpense /></ProtectedRoute>} />
               <Route path="/budget" element={<ProtectedRoute><BudgetPage /></ProtectedRoute>} />
+              <Route path="/income" element={<ProtectedRoute><Income /></ProtectedRoute>} />
               <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
               <Route path="/accountants" element={<ProtectedRoute><Accountants /></ProtectedRoute>} />
               <Route path="/admin" element={<ProtectedRoute><AdminPanel /></ProtectedRoute>} />

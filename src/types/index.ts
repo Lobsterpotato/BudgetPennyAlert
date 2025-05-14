@@ -1,6 +1,25 @@
 // TypeScript type definitions for the application
 // This file contains all the core data models used throughout the app
 
+// Income type definition
+export type Income = {
+  id: string;
+  description: string;
+  amount: number;
+  date: Date;
+  type: IncomeType;
+  isRecurring: boolean;
+  recurrencePattern?: string;
+};
+
+// Available income types
+export type IncomeType = 
+  | "SALARY" 
+  | "BUSINESS" 
+  | "INVESTMENT" 
+  | "GIFT" 
+  | "OTHER";
+
 // Expense record type definition
 export type Expense = {
   id: string;

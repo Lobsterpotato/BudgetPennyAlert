@@ -1,4 +1,3 @@
-
 // Dashboard Summary Component
 // Provides visual overview of expense data with charts and statistics
 // Technologies used:
@@ -9,19 +8,38 @@
 
 import { useMemo } from "react";
 import { useExpenses } from "@/context/ExpenseContext";
+import { useQuery } from "@tanstack/react-query";
 import { formatCurrency, getExpensesByCategory, getMonthlyTotals, calculateTotalExpenses } from "@/lib/expense-utils";
 import { CategoryTotal, MonthlyTotal } from "@/types";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid, BarChart, Bar, Legend } from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowDownIcon, ArrowUpIcon, DollarSign, Calendar, PieChart as PieChartIcon, BarChart3 } from "lucide-react";
+import { ArrowDownIcon, ArrowUpIcon, DollarSign, Calendar, PieChart as PieChartIcon, BarChart3, Wallet } from "lucide-react";
+import axios from "axios";
+import { useAuth } from "@/context/AuthContext";
 
 export default function DashboardSummary() {
-  // Access expense data from context
+  const { user } = useAuth();
   const { expenses, filteredExpenses } = useExpenses();
+
+  // Fetch income data
+  const { data: incomeData = [] } = useQuery({
+    queryKey: ['incomes', user?.email],
+    queryFn: async () => {
+      const response = await axios.get(`/api/incomes?email=${user?.email}`);
+      return response.data;
+    },
+    enabled: !!user?.email
+  });
+
+  // Calculate total income
+  const totalIncome = useMemo(() => {
+    return incomeData.reduce((sum: number, income: any) => sum + income.amount, 0);
+  }, [incomeData]);
 
   // Calculate summary metrics with memoization for performance
   const totalExpenses = useMemo(() => calculateTotalExpenses(filteredExpenses), [filteredExpenses]);
+  const netBalance = useMemo(() => totalIncome - totalExpenses, [totalIncome, totalExpenses]);
   const averageExpense = useMemo(() => filteredExpenses.length > 0 ? totalExpenses / filteredExpenses.length : 0, [filteredExpenses, totalExpenses]);
   
   // Prepare data for charts
@@ -93,6 +111,19 @@ export default function DashboardSummary() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Income</CardTitle>
+            <Wallet className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(totalIncome)}</div>
+            <p className="text-xs text-muted-foreground">
+              For {incomeData.length} income source{incomeData.length !== 1 ? 's' : ''}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -106,22 +137,16 @@ export default function DashboardSummary() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Recent Spending</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Net Balance</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(recentExpenseTotal)}</div>
-            <div className="flex items-center">
-              {percentChange > 0 ? (
-                <ArrowUpIcon className="h-4 w-4 text-red-500 mr-1" />
-              ) : percentChange < 0 ? (
-                <ArrowDownIcon className="h-4 w-4 text-green-500 mr-1" />
-              ) : null}
-              <p className={`text-xs ${percentChange > 0 ? 'text-red-500' : percentChange < 0 ? 'text-green-500' : 'text-muted-foreground'}`}>
-                {percentChange !== 0 && Math.abs(percentChange).toFixed(1) + '%'} 
-                {percentChange > 0 ? 'more' : percentChange < 0 ? 'less' : 'same'} than previous period
-              </p>
+            <div className={`text-2xl font-bold ${netBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              {formatCurrency(netBalance)}
             </div>
+            <p className="text-xs text-muted-foreground">
+              {netBalance >= 0 ? 'Positive balance' : 'Negative balance'}
+            </p>
           </CardContent>
         </Card>
 
@@ -133,23 +158,6 @@ export default function DashboardSummary() {
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(averageExpense)}</div>
             <p className="text-xs text-muted-foreground">Per expense</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Top Category</CardTitle>
-            <PieChartIcon className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold capitalize">
-              {categoryData.length > 0 ? categoryData[0].category : 'None'}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {categoryData.length > 0 
-                ? `${formatCurrency(categoryData[0].amount)} total spending` 
-                : 'No data available'}
-            </p>
           </CardContent>
         </Card>
       </div>

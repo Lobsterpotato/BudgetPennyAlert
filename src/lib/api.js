@@ -72,6 +72,24 @@ export const authApi = {
       console.error('Get user details error:', error);
       throw error;
     }
+  },
+
+  // Verify user session
+  verifySession: async (email) => {
+    try {
+      const response = await fetch(`${API_URL}/users/${email}`);
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Session invalid');
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('Session verification error:', error);
+      throw error;
+    }
   }
 };
 

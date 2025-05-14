@@ -1,290 +1,235 @@
-
-import { useState } from "react";
+import React, { useEffect, useState } from 'react';
 import { useAuth } from "@/context/AuthContext";
-import { useToast } from "@/hooks/use-toast";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogFooter, 
-  DialogHeader, 
-  DialogTitle 
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import axios from 'axios';
 import Layout from "@/components/Layout";
-import { Shield, UserCog, Trash2, AlertOctagon } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Shield } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
 
-// Mock user data - this would be fetched from your backend
-// In a real implementation, you'd fetch this from Supabase
-const mockUsers = [
-  { id: "1", email: "demo@example.com", name: "Demo User", role: "user", status: "active" },
-  { id: "2", email: "jane@example.com", name: "Jane Smith", role: "user", status: "active" },
-  { id: "3", email: "admin@example.com", name: "Admin User", role: "admin", status: "active" },
-  { id: "4", email: "john@example.com", name: "John Doe", role: "user", status: "inactive" },
-];
-
-type User = {
-  id: string;
+interface User {
+  id: number;
   email: string;
-  name: string;
+  username: string;
   role: string;
-  status: string;
-};
+  expenseCount: number;
+  incomeCount: number;
+}
 
-export default function AdminPanel() {
+interface SystemStats {
+  totalUsers: number;
+  totalExpenses: number;
+  totalIncomes: number;
+  activeUsers: number;
+}
+
+const AdminPanel: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [users, setUsers] = useState<User[]>(mockUsers);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [editedUserData, setEditedUserData] = useState<Partial<User>>({});
+  const [users, setUsers] = useState<User[]>([]);
+  const [stats, setStats] = useState<SystemStats | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
 
-  // Check if current user is admin - this would be implementation-specific
-  // In this mock version, we're just checking if the email contains 'admin'
-  const isAdmin = user?.email.includes("admin");
-
-  if (!isAdmin) {
-    return (
-      <Layout>
-        <div className="flex flex-col items-center justify-center min-h-[70vh] text-center">
-          <AlertOctagon className="h-16 w-16 text-destructive mb-4" />
-          <h1 className="text-2xl font-bold mb-2">Access Denied</h1>
-          <p className="text-muted-foreground max-w-md">
-            You need administrator privileges to access this page. Please contact your system administrator.
-          </p>
-        </div>
-      </Layout>
-    );
-  }
-
-  const handleEditUser = (user: User) => {
-    setSelectedUser(user);
-    setEditedUserData({
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      status: user.status,
-    });
-    setIsEditDialogOpen(true);
+  const fetchUsers = async () => {
+    try {
+      const response = await axios.get('/api/users/admin/users', {
+        headers: { 'User-Email': user?.email }
+      });
+      setUsers(response.data);
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch users",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleDeleteUser = (user: User) => {
-    setSelectedUser(user);
-    setIsDeleteDialogOpen(true);
+  const fetchStats = async () => {
+    try {
+      const response = await axios.get('/api/users/admin/stats', {
+        headers: { 'User-Email': user?.email }
+      });
+      setStats(response.data);
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch system statistics",
+        variant: "destructive",
+      });
+    }
   };
 
-  const saveUserChanges = () => {
-    if (!selectedUser) return;
-    
-    // In a real app, this would make an API call to update the user in your backend
-    const updatedUsers = users.map((u) =>
-      u.id === selectedUser.id ? { ...u, ...editedUserData } : u
-    );
-    
-    setUsers(updatedUsers);
-    setIsEditDialogOpen(false);
-    
-    toast({
-      title: "User updated",
-      description: `${selectedUser.name}'s information has been updated successfully.`,
-    });
+  useEffect(() => {
+    fetchUsers();
+    fetchStats();
+  }, []);
+
+  const handleDeleteClick = (userId: number) => {
+    setSelectedUserId(userId);
+    setDeleteDialogOpen(true);
   };
 
-  const confirmDeleteUser = () => {
-    if (!selectedUser) return;
-    
-    // In a real app, this would make an API call to delete the user in your backend
-    const updatedUsers = users.filter((u) => u.id !== selectedUser.id);
-    
-    setUsers(updatedUsers);
-    setIsDeleteDialogOpen(false);
-    
-    toast({
-      title: "User deleted",
-      description: `${selectedUser.name} has been deleted successfully.`,
-    });
+  const handleDeleteConfirm = async () => {
+    if (!selectedUserId) return;
+
+    try {
+      await axios.delete(`/api/users/admin/delete/${selectedUserId}`, {
+        headers: {
+          'User-Email': user?.email,
+          'Content-Type': 'application/json'
+        }
+      });
+      setUsers(users.filter(u => u.id !== selectedUserId));
+      setDeleteDialogOpen(false);
+      setSelectedUserId(null);
+      fetchStats(); // Refresh stats after deletion
+      toast({
+        title: "Success",
+        description: "User deleted successfully",
+      });
+    } catch (err) {
+      console.error('Delete error:', err);
+      toast({
+        title: "Error",
+        description: "Failed to delete user",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
     <Layout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="space-y-1">
-            <h2 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
-              <Shield className="h-6 w-6 text-primary" />
-              Admin Panel
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Manage users and system settings
-            </p>
-          </div>
+      <div className="container mx-auto py-6 space-y-6">
+        <div className="flex items-center gap-2">
+          <Shield className="h-6 w-6" />
+          <h1 className="text-2xl font-bold">Admin Panel</h1>
         </div>
 
-        {/* User Management Section */}
-        <div className="rounded-md border">
-          <div className="p-4 bg-muted/50">
-            <h3 className="text-lg font-medium flex items-center gap-2">
-              <UserCog className="h-5 w-5" />
-              User Management
-            </h3>
-          </div>
-          
-          <div className="p-0">
+        {/* System Statistics */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats?.totalUsers || 0}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Active Users</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats?.activeUsers || 0}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats?.totalExpenses || 0}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Incomes</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats?.totalIncomes || 0}</div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Users Table */}
+        <Card>
+          <CardHeader>
+            <CardTitle>User Management</CardTitle>
+          </CardHeader>
+          <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Username</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Role</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>Expenses</TableHead>
+                  <TableHead>Incomes</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {users.map((user) => (
                   <TableRow key={user.id}>
-                    <TableCell className="font-medium">{user.name}</TableCell>
+                    <TableCell>{user.id}</TableCell>
+                    <TableCell>{user.username}</TableCell>
                     <TableCell>{user.email}</TableCell>
+                    <TableCell>{user.role}</TableCell>
+                    <TableCell>{user.expenseCount}</TableCell>
+                    <TableCell>{user.incomeCount}</TableCell>
                     <TableCell>
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                        user.role === "admin" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-                      }`}>
-                        {user.role}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                        user.status === "active" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-                      }`}>
-                        {user.status}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEditUser(user)}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => handleDeleteUser(user)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDeleteClick(user.id)}
+                      >
+                        Delete
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete the user
+                and all their associated data.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteConfirm}>
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
-
-      {/* Edit User Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit User</DialogTitle>
-            <DialogDescription>
-              Make changes to {selectedUser?.name}'s account information.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name" className="text-right">
-                Name
-              </Label>
-              <Input
-                id="name"
-                value={editedUserData.name || ""}
-                onChange={(e) => setEditedUserData({ ...editedUserData, name: e.target.value })}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="email" className="text-right">
-                Email
-              </Label>
-              <Input
-                id="email"
-                value={editedUserData.email || ""}
-                onChange={(e) => setEditedUserData({ ...editedUserData, email: e.target.value })}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="role" className="text-right">
-                Role
-              </Label>
-              <select
-                id="role"
-                value={editedUserData.role || ""}
-                onChange={(e) => setEditedUserData({ ...editedUserData, role: e.target.value })}
-                className="col-span-3 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <option value="user">User</option>
-                <option value="admin">Admin</option>
-              </select>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="status" className="text-right">
-                Status
-              </Label>
-              <select
-                id="status"
-                value={editedUserData.status || ""}
-                onChange={(e) => setEditedUserData({ ...editedUserData, status: e.target.value })}
-                className="col-span-3 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={saveUserChanges}>Save Changes</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete User Confirmation Dialog */}
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete User</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete {selectedUser?.name}? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={confirmDeleteUser}>
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </Layout>
   );
-}
+};
+
+export default AdminPanel; 

@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -36,16 +35,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // Check for existing user session on mount
   useEffect(() => {
-    const storedUser = localStorage.getItem(STORAGE_KEY);
-    if (storedUser) {
+    const checkAuth = async () => {
       try {
-        setUser(JSON.parse(storedUser));
+        const storedUser = localStorage.getItem(STORAGE_KEY);
+        if (storedUser) {
+          const parsedUser = JSON.parse(storedUser);
+          // Verify the session is still valid
+          try {
+            await authApi.verifySession(parsedUser.email);
+            setUser(parsedUser);
+          } catch (error) {
+            // If session is invalid, clear the stored user
+            localStorage.removeItem(STORAGE_KEY);
+            setUser(null);
+          }
+        }
       } catch (error) {
-        console.error("Failed to parse stored user", error);
+        console.error("Error checking authentication:", error);
         localStorage.removeItem(STORAGE_KEY);
+        setUser(null);
+      } finally {
+        setIsLoading(false);
       }
-    }
-    setIsLoading(false);
+    };
+
+    checkAuth();
   }, []);
 
   // Login function
@@ -67,12 +81,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(loggedInUser);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(loggedInUser));
       
+      // Log user data for debugging
+      console.log('Logged in user:', loggedInUser);
+      
       toast({
         title: "Login successful",
         description: `Welcome back, ${loggedInUser.name}!`,
       });
       
-      navigate("/");
+      navigate("/dashboard");
     } catch (error) {
       toast({
         title: "Login failed",
@@ -80,6 +97,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         variant: "destructive",
       });
       console.error("Login error:", error);
+      setUser(null);
+      localStorage.removeItem(STORAGE_KEY);
     } finally {
       setIsLoading(false);
     }
@@ -109,7 +128,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         description: `Welcome to Budget Alert, ${name}!`,
       });
       
-      navigate("/");
+      navigate("/dashboard");
     } catch (error) {
       toast({
         title: "Signup failed",
@@ -117,6 +136,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         variant: "destructive",
       });
       console.error("Signup error:", error);
+      setUser(null);
+      localStorage.removeItem(STORAGE_KEY);
     } finally {
       setIsLoading(false);
     }

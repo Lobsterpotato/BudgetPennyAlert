@@ -1,11 +1,22 @@
-
 import React, { useState } from "react";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Star, StarHalf, StarOff, Mail, Phone } from "lucide-react";
+import { Star, StarHalf, StarOff, Mail, Phone, Briefcase } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Accountant } from "@/types";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/components/ui/use-toast";
 
 // Sample data for accountants
 const accountantsData: Accountant[] = [
@@ -84,15 +95,55 @@ const renderRating = (rating: number) => {
 
 export default function AccountantsPage() {
   const [accountants, setAccountants] = useState<Accountant[]>(accountantsData);
-  
+  const [isApplicationDialogOpen, setIsApplicationDialogOpen] = useState(false);
+  const [applicationForm, setApplicationForm] = useState({
+    name: "",
+    email: "",
+    experience: "",
+    qualifications: "",
+    motivation: ""
+  });
+
+  const handleApplicationSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // In a real app, this would send the application to your backend
+    console.log("Application submitted:", applicationForm);
+    
+    // Reset form
+    setApplicationForm({
+      name: "",
+      email: "",
+      experience: "",
+      qualifications: "",
+      motivation: ""
+    });
+    
+    setIsApplicationDialogOpen(false);
+    
+    toast({
+      title: "Application Submitted",
+      description: "Your application has been submitted successfully. We'll review it and get back to you soon.",
+    });
+  };
+
   return (
     <Layout>
       <div className="space-y-8">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Personal Accountants</h1>
-          <p className="text-muted-foreground mt-1">
-            Find professional financial help to manage your expenses
-          </p>
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Personal Accountants</h1>
+            <p className="text-muted-foreground mt-1">
+              Find professional financial help to manage your expenses
+            </p>
+          </div>
+          <Button
+            onClick={() => setIsApplicationDialogOpen(true)}
+            className="flex items-center gap-2"
+          >
+            <Briefcase className="h-4 w-4" />
+            Become a Consultant
+          </Button>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -152,6 +203,77 @@ export default function AccountantsPage() {
           ))}
         </div>
       </div>
+
+      {/* Consultant Application Dialog */}
+      <Dialog open={isApplicationDialogOpen} onOpenChange={setIsApplicationDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Become a Consultant</DialogTitle>
+            <DialogDescription>
+              Fill out the form below to apply as a financial consultant. We'll review your application and get back to you soon.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleApplicationSubmit}>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="name">Full Name</Label>
+                <Input
+                  id="name"
+                  value={applicationForm.name}
+                  onChange={(e) => setApplicationForm({ ...applicationForm, name: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={applicationForm.email}
+                  onChange={(e) => setApplicationForm({ ...applicationForm, email: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="experience">Professional Experience</Label>
+                <Textarea
+                  id="experience"
+                  value={applicationForm.experience}
+                  onChange={(e) => setApplicationForm({ ...applicationForm, experience: e.target.value })}
+                  placeholder="Describe your relevant work experience..."
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="qualifications">Qualifications & Certifications</Label>
+                <Textarea
+                  id="qualifications"
+                  value={applicationForm.qualifications}
+                  onChange={(e) => setApplicationForm({ ...applicationForm, qualifications: e.target.value })}
+                  placeholder="List your qualifications, certifications, and relevant education..."
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="motivation">Why do you want to become a consultant?</Label>
+                <Textarea
+                  id="motivation"
+                  value={applicationForm.motivation}
+                  onChange={(e) => setApplicationForm({ ...applicationForm, motivation: e.target.value })}
+                  placeholder="Tell us about your motivation and what you can bring to our platform..."
+                  required
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsApplicationDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">Submit Application</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }

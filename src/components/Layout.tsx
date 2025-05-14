@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
-import { CircleDollarSign, Home, PieChart, Users, LogOut, User, Shield } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { CircleDollarSign, Home, PieChart, Users, LogOut, User, Shield, Wallet } from "lucide-react";
+import { Link, useLocation, Navigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -20,23 +20,41 @@ interface LayoutProps {
 export default function Layout({ children }: LayoutProps) {
   // Get current route to highlight active navigation items
   const location = useLocation();
-  const { user, logout } = useAuth();
+  const { user, logout, isAuthenticated, isLoading } = useAuth();
   
-  // Check if current user is admin - this would be implementation-specific
-  // In this mock version, we're just checking if the email contains 'admin'
-  const isAdmin = user?.email.includes("admin");
+  // Show loading state while checking authentication
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  // Redirect to login if not authenticated
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  // Check if current user is admin based on role
+  const isAdmin = user?.role?.toUpperCase() === "ADMIN";
   
   // Navigation items used in both sidebar and mobile navigation
   const mainNavItems = [
     {
       title: "Dashboard",
-      href: "/",
+      href: "/dashboard",
       icon: <Home className="h-5 w-5" />,
     },
     {
       title: "Add Expense",
       href: "/add",
       icon: <CircleDollarSign className="h-5 w-5" />,
+    },
+    {
+      title: "Income",
+      href: "/income",
+      icon: <Wallet className="h-5 w-5" />,
     },
     {
       title: "Manage Budgets",
@@ -66,6 +84,12 @@ export default function Layout({ children }: LayoutProps) {
         },
       ]
     : mainNavItems;
+
+  // Log navigation state for debugging
+  console.log('Current user:', user);
+  console.log('Is admin:', isAdmin);
+  console.log('Navigation items:', navItems);
+  console.log('Current location:', location.pathname);
 
   return (
     <div className="flex min-h-screen">
@@ -119,7 +143,7 @@ export default function Layout({ children }: LayoutProps) {
 
       {/* Mobile bottom navigation - visible only on mobile */}
       <div className="fixed bottom-0 left-0 z-50 w-full h-16 bg-white border-t border-gray-200 md:hidden">
-        <div className={`grid h-full ${isAdmin ? 'grid-cols-5' : 'grid-cols-4'}`}>
+        <div className={`grid h-full ${isAdmin ? 'grid-cols-6' : 'grid-cols-5'}`}>
           {navItems.map((item) => (
             <Link
               key={item.href}
